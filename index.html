@@ -308,6 +308,73 @@
     alert("Welcome to EditConnect! Profile registration will be added next.");
   }
 </script>
+<!-- EDITOR PORTFOLIO -->
+<section id="editor-portfolio" style="padding:40px 20px;max-width:900px;margin:auto;">
+  <h2>🎬 Create Your Editor Portfolio</h2>
+  <p>Show clients your editing skills with your original and edited videos.</p>
 
+  <input type="text" id="editorName" placeholder="Editor Name"
+    style="width:100%;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #ccc;">
+
+  <input type="text" id="editorSkills" placeholder="Your Skills (e.g. Reels, YouTube, Wedding Editing)"
+    style="width:100%;padding:14px;margin:8px 0;border-radius:10px;border:1px solid #ccc;">
+
+  <div style="margin-top:20px;">
+    <label><b>📹 Upload Raw / Original Video</b></label><br>
+    <input type="file" id="rawVideo" accept="video/*" style="margin:10px 0;">
+    <video id="rawPreview" controls style="width:100%;max-height:300px;display:none;border-radius:12px;"></video>
+  </div>
+
+  <div style="margin-top:20px;">
+    <label><b>✂️ Upload Edited Video</b></label><br>
+    <input type="file" id="editedVideo" accept="video/*" style="margin:10px 0;">
+    <video id="editedPreview" controls style="width:100%;max-height:300px;display:none;border-radius:12px;"></video>
+  </div>
+
+  <button onclick="createPortfolio()"
+    style="margin-top:25px;padding:14px 25px;border:0;border-radius:10px;cursor:pointer;">
+    🚀 Create Portfolio
+  </button>
+
+  <div id="portfolioResult" style="margin-top:30px;"></div>
+</section>
+
+<script>
+function previewVideo(input, previewId) {
+  const file = input.files[0];
+  const preview = document.getElementById(previewId);
+
+  if (file) {
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+  }
+}
+
+document.getElementById("rawVideo").addEventListener("change", function () {
+  previewVideo(this, "rawPreview");
+});
+
+document.getElementById("editedVideo").addEventListener("change", function () {
+  previewVideo(this, "editedPreview");
+});
+
+function createPortfolio() {
+  const name = document.getElementById("editorName").value.trim();
+  const skills = document.getElementById("editorSkills").value.trim();
+
+  if (!name || !skills) {
+    alert("Please enter your name and skills.");
+    return;
+  }
+
+  document.getElementById("portfolioResult").innerHTML = `
+    <div style="padding:20px;border-radius:15px;border:1px solid #ddd;">
+      <h3>👤 ${name}</h3>
+      <p><b>Skills:</b> ${skills}</p>
+      <p>🎬 Portfolio created successfully!</p>
+    </div>
+  `;
+}
+</script>
 </body>
 </html>

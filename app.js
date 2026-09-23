@@ -1,11 +1,253 @@
-const A=document.getElementById("app");let E=[],J=[];
-async function data(){E=await fetch("/api/editors").then(x=>x.json());J=await fetch("/api/jobs").then(x=>x.json());home()}
-function home(){A.innerHTML=`<div class=wrap><section class=hero><h1>Editors खोजें • Jobs पाएँ • काम करवाएँ</h1><p>Clients और professional editors को एक जगह जोड़ने वाला platform.</p><button class=primary onclick="jobs()">नई Jobs देखें</button> <button onclick="register()">Editor बनें</button></section><div class=grid><div class=card><h2>🎬 Editor Profiles</h2><p>Skills और portfolio देखकर editor चुनें.</p></div><div class=card><h2>💼 Jobs</h2><p>नई editing jobs post करें और apply करें.</p></div><div class=card><h2>⭐ Ratings</h2><p>अच्छे editors की पहचान आसान होगी.</p></div></div></div>`}
-function editors(){A.innerHTML=`<div class=wrap><h2>🎬 Editors</h2><div class=grid>${E.map(e=>`<div class=card><h2>${e.name} ✅</h2><p class=muted>${e.bio||"Professional Editor"}</p><p>${(e.skills||"").split(",").map(s=>`<span class=pill>${s}</span>`).join("")}</p><b>Portfolio</b><p>${(e.portfolio||"").split("|").map(s=>`<span class=pill>${s}</span>`).join("")}</p><button class=primary onclick="alert('Contact request sent to ${e.name}')">Contact / Hire</button></div>`).join("")}</div></div>`}
-function jobs(){A.innerHTML=`<div class=wrap><button class=primary onclick="post()">+ Post Job</button><h2>💼 Latest Jobs</h2><div class=grid>${J.length?J.map(j=>`<div class=card><h2>${j.title}</h2><p class=muted>${j.category} • Deadline: ${j.deadline}</p><p>${j.description}</p><b>Budget: ₹${j.budget}</b><br><button class=primary onclick="apply(${j.id})">Apply Now</button></div>`).join(""):`<div class=card>अभी कोई Job नहीं है।</div>`}</div></div>`}
-function register(){A.innerHTML=`<div class=wrap><div class=form><h2>👤 Create Profile</h2><input id=n placeholder="Name"><input id=e placeholder="Email"><select id=r><option value=editor>Editor</option><option value=client>Client</option></select><input id=s placeholder="Skills"><textarea id=b placeholder="Bio"></textarea><input id=p placeholder="Portfolio items, | से अलग करें"><button class=primary onclick="saveUser()">Create Account</button><p id=m></p></div></div>`}
-async function saveUser(){let x=await fetch("/api/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n.value,email:e.value,role:r.value,skills:s.value,bio:b.value,portfolio:p.value})});m.textContent=x.ok?"Profile created successfully!":"Email already registered.";data()}
-function post(){A.innerHTML=`<div class=wrap><div class=form><h2>➕ Post a Job</h2><input id=t placeholder="Job Title"><select id=c><option>Video Editing</option><option>Reels</option><option>YouTube</option><option>Thumbnail</option><option>Wedding</option><option>VFX</option></select><input id=bu placeholder="Budget"><input id=d placeholder="Deadline"><textarea id=de placeholder="काम की जानकारी"></textarea><button class=primary onclick="saveJob()">Publish Job</button><p id=m></p></div></div>`}
-async function saveJob(){await fetch("/api/jobs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title:t.value,category:c.value,budget:bu.value,deadline:d.value,description:de.value,client_id:1})});data()}
-async function apply(id){if(!E.length)return alert("पहले Editor profile बनाइए.");await fetch("/api/apply",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({job_id:id,editor_id:E[0].id,message:"I want to apply for this job."})});alert("Application submitted successfully!")}
-data();
+const SUPABASE_URL = "https://bupwkwpcaoaohzfwleou.supabase.co";
+const SUPABASE_KEY = "sb_publishable_EnPl-L86y6pxiW39q01ceQ_sCbhYbJo
+
+const A = document.getElementById("app");
+
+async function sb(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": options.method === "POST"
+        ? "return=representation"
+        : "return=minimal",
+      ...(options.headers || {})
+    }
+  });
+
+  if (!res.ok) {
+    const error = await res.text();
+    throw new Error(error);
+  }
+
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+function e(text) {
+  return String(text ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+async function home() {
+  A.innerHTML = `
+    <div class="wrap">
+      <h1>EditConnect</h1>
+      <h2>Connect With Professional Editors</h2>
+      <p>Find editors, post editing jobs and connect with talented video editors.</p>
+
+      <button onclick="editors()">Find Editors</button>
+      <button onclick="jobs()">Latest Editing Jobs</button>
+      <button onclick="register()">Join EditConnect</button>
+    </div>
+  `;
+}
+
+async function editors() {
+  A.innerHTML = `<div class="wrap"><h2>Professional Editors</h2><p>Loading...</p></div>`;
+
+  try {
+    const data = await sb(
+      "editors?select=*&order=created_at.desc"
+    );
+
+    if (!data.length) {
+      A.innerHTML = `
+        <div class="wrap">
+          <h2>Professional Editors</h2>
+          <p>No editors registered yet.</p>
+          <button onclick="register()">Join as Editor</button>
+        </div>`;
+      return;
+    }
+
+    A.innerHTML = `
+      <div class="wrap">
+        <h2>Professional Editors</h2>
+        ${data.map(x => `
+          <div class="card">
+            <h3>${e(x.name)}</h3>
+            <p>${e(x.description)}</p>
+            <p><b>Skills:</b> ${e(x.skills)}</p>
+            <p><b>Experience:</b> ${e(x.experience)}</p>
+            <p><b>Location:</b> ${e(x.location)}</p>
+            <p><b>Hourly Rate:</b> ₹${e(x.hourly_rate)}</p>
+            ${x.is_verified ? "<p>✓ Verified Editor</p>" : ""}
+            ${x.portfolio_url ? `<a href="${e(x.portfolio_url)}" target="_blank">View Portfolio</a>` : ""}
+          </div>
+        `).join("")}
+      </div>`;
+  } catch (err) {
+    A.innerHTML = `<div class="wrap"><h2>Error</h2><p>${e(err.message)}</p></div>`;
+  }
+}
+
+async function jobs() {
+  A.innerHTML = `<div class="wrap"><h2>Latest Editing Jobs</h2><p>Loading...</p></div>`;
+
+  try {
+    const data = await sb(
+      "jobs?select=*&order=created_at.desc"
+    );
+
+    if (!data.length) {
+      A.innerHTML = `
+        <div class="wrap">
+          <h2>Latest Editing Jobs</h2>
+          <p>No jobs posted yet.</p>
+          <button onclick="post()">Post an Editing Job</button>
+        </div>`;
+      return;
+    }
+
+    A.innerHTML = `
+      <div class="wrap">
+        <h2>Latest Editing Jobs</h2>
+
+        ${data.map(x => `
+          <div class="card">
+            <h3>${e(x.title)}</h3>
+            <p>${e(x.description)}</p>
+            <p><b>Budget:</b> ₹${e(x.budget)}</p>
+            <p><b>Client:</b> ${e(x.client_name)}</p>
+            <p><b>Status:</b> ${e(x.status)}</p>
+            ${x.video_url ? `<p><a href="${e(x.video_url)}" target="_blank">View Video</a></p>` : ""}
+            <button onclick="apply(${x.id})">Apply for this Job</button>
+          </div>
+        `).join("")}
+
+        <button onclick="post()">Post New Job</button>
+      </div>`;
+  } catch (err) {
+    A.innerHTML = `<div class="wrap"><h2>Error</h2><p>${e(err.message)}</p></div>`;
+  }
+}
+
+function register() {
+  A.innerHTML = `
+    <div class="wrap">
+      <h2>Join EditConnect</h2>
+
+      <input id="name" placeholder="Your Name">
+      <input id="email" placeholder="Email">
+      <textarea id="description" placeholder="About You"></textarea>
+      <input id="skills" placeholder="Editing Skills">
+      <input id="experience" placeholder="Experience">
+      <input id="location" placeholder="Location">
+      <input id="hourly_rate" type="number" placeholder="Hourly Rate">
+      <input id="portfolio_url" placeholder="Portfolio URL">
+      <input id="raw_video_url" placeholder="Raw Video URL">
+      <input id="edited_video_url" placeholder="Edited Video URL">
+      <input id="bio" placeholder="Short Bio">
+      <input id="phone" placeholder="Phone">
+
+      <button onclick="saveUser()">Register as Editor</button>
+    </div>`;
+}
+
+async function saveUser() {
+  const user = {
+    name: document.getElementById("name").value,
+    email: document.getElementById("email").value,
+    description: document.getElementById("description").value,
+    skills: document.getElementById("skills").value,
+    experience: document.getElementById("experience").value,
+    location: document.getElementById("location").value,
+    hourly_rate: Number(document.getElementById("hourly_rate").value || 0),
+    portfolio_url: document.getElementById("portfolio_url").value,
+    raw_video_url: document.getElementById("raw_video_url").value,
+    edited_video_url: document.getElementById("edited_video_url").value,
+    bio: document.getElementById("bio").value,
+    phone: document.getElementById("phone").value
+  };
+
+  try {
+    const result = await sb("editors", {
+      method: "POST",
+      body: JSON.stringify(user)
+    });
+
+    if (result && result[0]) {
+      localStorage.setItem("editconnect_editor_id", result[0].id);
+    }
+
+    alert("Editor profile created successfully!");
+    editors();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+function post() {
+  A.innerHTML = `
+    <div class="wrap">
+      <h2>Post an Editing Job</h2>
+
+      <input id="job_title" placeholder="Job Title">
+      <textarea id="job_description" placeholder="Job Description"></textarea>
+      <input id="job_budget" type="number" placeholder="Budget">
+      <input id="client_name" placeholder="Your Name">
+      <input id="video_url" placeholder="Video URL">
+
+      <button onclick="saveJob()">Post Job</button>
+    </div>`;
+}
+
+async function saveJob() {
+  const job = {
+    title: document.getElementById("job_title").value,
+    description: document.getElementById("job_description").value,
+    budget: Number(document.getElementById("job_budget").value || 0),
+    client_name: document.getElementById("client_name").value,
+    video_url: document.getElementById("video_url").value,
+    status: "open"
+  };
+
+  try {
+    await sb("jobs", {
+      method: "POST",
+      body: JSON.stringify(job)
+    });
+
+    alert("Job posted successfully!");
+    jobs();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+async function apply(id) {
+  const editorId = localStorage.getItem("editconnect_editor_id");
+
+  if (!editorId) {
+    alert("Please register as an editor first.");
+    register();
+    return;
+  }
+
+  const message = prompt("Write a short message for the client:");
+
+  if (message === null) return;
+
+  try {
+    await sb("applications", {
+      method: "POST",
+      body: JSON.stringify({
+        job_id: Number(id),
+        editor_id: Number(editorId),
+        message: message
+      })
+    });
+
+    alert("Application submitted successfully!");
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+home();
